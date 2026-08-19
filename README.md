@@ -7,6 +7,9 @@ feature parity, rebuilt from scratch with modern macOS frameworks.
 > Chlorophyll is an independent project and is not affiliated with the Greenshot
 > team. Greenshot is a trademark of the Greenshot development team.
 
+See [PLAN.md](PLAN.md) for the full background analysis, architecture,
+feature-parity mapping and phased roadmap.
+
 ## Features (Phase 1 — current)
 
 - Menu-bar app (no Dock icon), native Swift/AppKit + SwiftUI
