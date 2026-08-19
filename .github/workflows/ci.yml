@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-lint:
+    name: Build, test, lint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version || true
+
+      - name: Lint
+        run: |
+          brew install swiftlint swiftformat
+          make lint
+
+      - name: Build & test
+        run: make test
+
+      - name: Assemble app bundle
+        run: make app
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chlorophyll-app
+          path: build/Chlorophyll.app
+          retention-days: 14
