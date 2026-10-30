@@ -29,8 +29,8 @@ public enum WindowList {
 
         var result: [WindowInfo] = []
         for dict in raw {
-            guard let layer = dict[kCGWindowLayer as String] as? Int, layer == 0 else { continue }
-            guard let id = dict[kCGWindowNumber as String] as? CGWindowID else { continue }
+            guard let layer = dict[kCGWindowLayer as String] as? Int, layer == 0,
+                  let id = dict[kCGWindowNumber as String] as? CGWindowID else { continue }
             let owner = dict[kCGWindowOwnerName as String] as? String ?? ""
             let title = dict[kCGWindowName as String] as? String ?? ""
             guard let boundsDict = dict[kCGWindowBounds as String] as? [String: Any],
@@ -39,8 +39,7 @@ public enum WindowList {
                   let w = boundsDict["Width"] as? CGFloat,
                   let h = boundsDict["Height"] as? CGFloat else { continue }
             let frame = CGRect(x: x, y: y, width: w, height: h)
-            guard w > 50, h > 50 else { continue }
-            guard owner != "Window Server", owner != "SystemUIServer" else { continue }
+            guard w > 50, h > 50, owner != "Window Server", owner != "SystemUIServer" else { continue }
 
             result.append(WindowInfo(
                 id: id,

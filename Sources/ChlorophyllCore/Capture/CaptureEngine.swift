@@ -109,8 +109,6 @@ public final class CaptureEngine {
             guard let screen = ScreenGeometry.screen(for: display) else { continue }
             images.append((screen.frame, image))
         }
-        guard !images.isEmpty else { throw CaptureError.compositeFailed }
-
         guard let first = images.first else { throw CaptureError.compositeFailed }
         var union = first.cocoaFrame
         for item in images.dropFirst() {
