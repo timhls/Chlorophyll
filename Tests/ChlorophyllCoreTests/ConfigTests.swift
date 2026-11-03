@@ -71,11 +71,101 @@ struct ConfigTests {
         #expect(config.resolvedOutputFolder.hasSuffix("Desktop"))
     }
 
-    @Test func defaultHotkeysUseOptionShift() {
+    @Test func defaultHotkeysMatchGreenshotForMac() {
         let defaults = HotkeyConfig.defaults
-        #expect(defaults.region.displayString == "⌥⇧4")
-        #expect(defaults.window.displayString == "⌥⇧5")
-        #expect(defaults.fullscreen.displayString == "⌥⇧3")
+        #expect(defaults.region.displayString == "⌥⌘1")
+        #expect(defaults.window.displayString == "⌥⌘2")
+        #expect(defaults.fullscreen.displayString == "⌥⌘0")
         #expect(defaults.lastRegion.displayString == "⌥⇧6")
+    }
+
+    @Test func greenshotImportMapsDestinationsAndFilename() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chlorophyll-greenshot-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let plist = dir.appendingPathComponent("Greenshot.plist")
+        let values: [String: Any] = [
+            "alwaysCopyToClipboard": false,
+            "alwaysSaveToFolder": false,
+            "filenamePrefix": "Greenshot"
+        ]
+        (values as NSDictionary).write(to: plist, atomically: true)
+
+        var imported = try GreenshotSettingsImporter.importSettings(
+            from: plist,
+            outputFolder: "~/Pictures/Greenshot"
+        )
+
+        #expect(imported.output.destinations == ["picker"])
+        #expect(imported.output.filenamePattern == "Greenshot ${YYYY}-${MM}-${DD} ${hh}-${mm}-${ss}")
+        #expect(imported.output.outputFolder == "~/Pictures/Greenshot")
+        #expect(imported.hotkeys == HotkeyConfig())
+
+        imported = try GreenshotSettingsImporter.importSettings(
+            from: plist,
+            copyToClipboard: true,
+            saveToFolder: false
+        )
+        #expect(imported.output.destinations == ["clipboard"])
+
+        imported = try GreenshotSettingsImporter.importSettings(
+            from: plist,
+            copyToClipboard: false,
+            saveToFolder: true
+        )
+        #expect(imported.output.destinations == ["file"])
+
+        imported = try GreenshotSettingsImporter.importSettings(
+            from: plist,
+            copyToClipboard: true,
+            saveToFolder: true
+        )
+        #expect(imported.output.destinations == ["clipboard", "file"])
+    }
+
+    @Test func greenshotImportUsesSettingsOverridesAndOmitsEmptyPrefix() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chlorophyll-greenshot-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let plist = dir.appendingPathComponent("Greenshot.plist")
+        let emptyPrefix: [String: Any] = ["filenamePrefix": ""]
+        (emptyPrefix as NSDictionary).write(to: plist, atomically: true)
+
+        let imported = try GreenshotSettingsImporter.importSettings(
+            from: plist,
+            copyToClipboard: true,
+            saveToFolder: true
+        )
+
+        #expect(imported.output.filenamePattern == "${YYYY}-${MM}-${DD} ${hh}-${mm}-${ss}")
+        #expect(imported.output.destinations == ["clipboard", "file"])
+    }
+
+    @Test func greenshotBackupUsesTimestampedSibling() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chlorophyll-backup-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let configURL = dir.appendingPathComponent("config.json")
+        let original = AppConfig()
+        try ConfigFileManager.save(original, to: configURL)
+        let existing = try FileManager.default.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasPrefix("config.") }
+
+        let backupURL = try GreenshotSettingsImporter.backupExistingConfig(
+            at: configURL,
+            existingFiles: existing
+        )
+
+        #expect(backupURL.lastPathComponent != "config.json")
+        #expect(backupURL.lastPathComponent.contains("backup"))
+        #expect(ConfigFileManager.load(from: backupURL) == original)
     }
 }

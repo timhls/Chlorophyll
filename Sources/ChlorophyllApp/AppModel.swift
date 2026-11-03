@@ -48,6 +48,32 @@ final class AppModel: ObservableObject {
         try? ConfigFileManager.save(config, to: configURL)
     }
 
+    @discardableResult
+    func importGreenshotSettings(
+        from sourceURL: URL = GreenshotSettingsImporter.settingsURL(),
+        fallbackURL: URL = GreenshotSettingsImporter.fallbackSettingsURL()
+    ) throws -> URL? {
+        let effectiveURL = FileManager.default.fileExists(atPath: sourceURL.path) ? sourceURL : fallbackURL
+        var imported = try GreenshotSettingsImporter.importSettings(from: effectiveURL)
+        var backupURL: URL?
+        if FileManager.default.fileExists(atPath: configURL.path) {
+            backupURL = try GreenshotSettingsImporter.backupExistingConfig(
+                at: configURL,
+                existingFiles: (try? FileManager.default.contentsOfDirectory(
+                    at: configURL.deletingLastPathComponent(),
+                    includingPropertiesForKeys: nil
+                )) ?? []
+            )
+        }
+
+        imported.capture = config.capture
+        imported.output.counter = config.output.counter
+        config = imported
+        try ConfigFileManager.save(config, to: configURL)
+        refreshHotkeysAfterConfigChange()
+        return backupURL
+    }
+
     // MARK: - Hotkeys
 
     func registerHotkeys(actions: @escaping (CaptureMode) -> Void) {

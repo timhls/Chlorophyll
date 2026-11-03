@@ -15,7 +15,7 @@ feature-parity mapping and phased roadmap.
 - Menu-bar app (no Dock icon), native Swift/AppKit + SwiftUI
 - **Capture modes**: region (interactive overlay), window (pick from list),
   fullscreen (all displays), last region
-- Global hotkeys (configurable, defaults use ⌥⇧ to avoid system conflicts)
+- Global hotkeys (configurable; defaults match Greenshot for Mac where available)
 - Export to clipboard (PNG) and/or PNG file with templated filenames
 - Screen Recording permission onboarding
 - JSON configuration with sensible defaults (`~/Library/Application Support/Chlorophyll/`)

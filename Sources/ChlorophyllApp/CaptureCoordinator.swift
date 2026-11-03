@@ -117,14 +117,23 @@ final class CaptureCoordinator: NSObject {
     // MARK: - Destinations
 
     private func deliver(_ image: CGImage) {
+        if model.config.output.destinations.contains("picker") {
+            DestinationPicker.show { [weak self] destination in
+                self?.deliver(image, destinations: [destination])
+            }
+            return
+        }
+
+        deliver(image, destinations: model.config.output.destinations)
+    }
+
+    private func deliver(_ image: CGImage, destinations: [String]) {
         if model.config.capture.playCameraSound {
             CameraSound.play()
         }
 
         var savedURL: URL?
         var copiedToClipboard = false
-        let destinations = model.config.output.destinations
-
         if destinations.contains("clipboard") {
             copiedToClipboard = writeToClipboard(image)
         }

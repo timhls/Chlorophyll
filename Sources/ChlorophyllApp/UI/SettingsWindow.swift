@@ -63,8 +63,29 @@ private struct GeneralSettingsTab: View {
             LabeledContent("Project") {
                 Link("github.com/timhls/Chlorophyll", destination: URL(string: "https://github.com/timhls/Chlorophyll")!)
             }
+            Section("Greenshot") {
+                Button("Import from Greenshot…") { importGreenshot() }
+                Text("Imports destinations, filename prefix, output folder, and Greenshot’s default hotkeys. Unsupported Greenshot preferences are left unchanged.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+    }
+
+    private func importGreenshot() {
+        do {
+            let backupURL = try model.importGreenshotSettings()
+            let backup = backupURL.map { " A backup was saved as \($0.lastPathComponent)." } ?? ""
+            let alert = NSAlert()
+            alert.messageText = "Greenshot settings imported"
+            alert.informativeText = "Destinations, output naming, and hotkeys were updated.\(backup)"
+            alert.runModal()
+        } catch {
+            let alert = NSAlert(error: error)
+            alert.messageText = "Could not import Greenshot settings"
+            alert.runModal()
+        }
     }
 }
 
@@ -106,6 +127,7 @@ private struct OutputSettingsTab: View {
             Section("Destinations") {
                 Toggle("Copy to clipboard", isOn: model.destinationBinding("clipboard"))
                 Toggle("Save to file", isOn: model.destinationBinding("file"))
+                Toggle("Ask after each capture", isOn: model.destinationBinding("picker"))
             }
             Section("File") {
                 Picker("Format", selection: model.binding(\.output.imageFormat)) {
@@ -176,7 +198,7 @@ private struct HotkeySettingsTab: View {
                     model.refreshHotkeysAfterConfigChange()
                 }
             }
-            Text("Click a shortcut, then press the desired key combination. Press ESC to cancel, ⌫ to clear. Combinations with ⌥⇧ avoid conflicts with the system screenshot shortcuts.")
+            Text("Click a shortcut, then press the desired key combination. Press ESC to cancel, ⌫ to clear. Defaults match Greenshot for Mac where Greenshot has a corresponding action.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -123,9 +123,9 @@ public struct HotkeyConfig: Codable, Equatable {
 
     /// Default bindings avoid ⌘⇧3/4/5 which macOS reserves for its own screenshots.
     public static let defaults = HotkeyConfig(
-        region: HotkeyBinding(keyCode: 0x15, carbonModifiers: 0x0A00), // ⌥⇧4
-        window: HotkeyBinding(keyCode: 0x17, carbonModifiers: 0x0A00), // ⌥⇧5
-        fullscreen: HotkeyBinding(keyCode: 0x14, carbonModifiers: 0x0A00), // ⌥⇧3
+        region: HotkeyBinding(keyCode: 0x12, carbonModifiers: 0x0900), // ⌘⌥1
+        window: HotkeyBinding(keyCode: 0x13, carbonModifiers: 0x0900), // ⌘⌥2
+        fullscreen: HotkeyBinding(keyCode: 0x1D, carbonModifiers: 0x0900), // ⌘⌥0
         lastRegion: HotkeyBinding(keyCode: 0x16, carbonModifiers: 0x0A00) // ⌥⇧6
     )
 
@@ -195,5 +195,79 @@ public enum ConfigFileManager {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(config)
         try data.write(to: url, options: .atomic)
+    }
+}
+
+/// Imports the subset of Greenshot for Mac preferences Chlorophyll supports.
+public enum GreenshotSettingsImporter {
+    public static func settingsURL(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        homeDirectory
+            .appendingPathComponent("Library/Containers/org.getgreenshot.Greenshot/Data/Library/Preferences/org.getgreenshot.Greenshot.plist")
+    }
+
+    public static func fallbackSettingsURL(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        homeDirectory
+            .appendingPathComponent("Library/Preferences/org.getgreenshot.Greenshot.plist")
+    }
+
+    public static func importSettings(
+        from url: URL,
+        copyToClipboard: Bool? = nil,
+        saveToFolder: Bool? = nil,
+        outputFolder: String = "~/Pictures/Greenshot"
+    ) throws -> AppConfig {
+        guard let values = NSDictionary(contentsOf: url) as? [String: Any] else {
+            throw CocoaError(.fileReadNoSuchFile, userInfo: [
+                NSFilePathErrorKey: url.path
+            ])
+        }
+
+        let shouldCopy = copyToClipboard ?? (values["alwaysCopyToClipboard"] as? Bool ?? false)
+        let shouldSave = saveToFolder ?? (values["alwaysSaveToFolder"] as? Bool ?? false)
+        let destinations: [String] = switch (shouldCopy, shouldSave) {
+        case (true, false): ["clipboard"]
+        case (false, true): ["file"]
+        case (true, true): ["clipboard", "file"]
+        case (false, false): ["picker"]
+        }
+
+        let basePattern = AppConfig().output.filenamePattern
+        let prefix = (values["filenamePrefix"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let filenamePattern = prefix.isEmpty ? basePattern : "\(prefix) \(basePattern)"
+
+        var config = AppConfig()
+        config.output.destinations = destinations
+        config.output.filenamePattern = filenamePattern
+        config.output.outputFolder = outputFolder
+        config.hotkeys = HotkeyConfig.defaults
+        return config
+    }
+
+    public static func backupExistingConfig(
+        at configURL: URL,
+        existingFiles: [URL] = []
+    ) throws -> URL {
+        guard FileManager.default.fileExists(atPath: configURL.path) else {
+            throw CocoaError(.fileNoSuchFile, userInfo: [
+                NSFilePathErrorKey: configURL.path
+            ])
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        var backupURL = configURL.deletingLastPathComponent()
+            .appendingPathComponent("config.backup-\(formatter.string(from: Date())).json")
+        var suffix = 1
+        let names = Set(existingFiles.map(\.lastPathComponent))
+        while names.contains(backupURL.lastPathComponent) {
+            backupURL = configURL.deletingLastPathComponent()
+                .appendingPathComponent("config.backup-\(formatter.string(from: Date()))-\(suffix).json")
+            suffix += 1
+        }
+
+        try FileManager.default.copyItem(at: configURL, to: backupURL)
+        return backupURL
     }
 }
